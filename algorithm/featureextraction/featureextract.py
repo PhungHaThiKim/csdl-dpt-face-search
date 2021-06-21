@@ -3,6 +3,9 @@ import cv2 as cv
 from skimage.feature import local_binary_pattern
 import numpy as np
 
+from algorithm.featureextraction.LBP import LBP
+
+
 class FeatureExtract:
     @staticmethod
     def histogram_color(img):
@@ -19,8 +22,9 @@ class FeatureExtract:
     @staticmethod
     def local_binary_pattern(img):
         img = cv.cvtColor(img, cv.COLOR_RGB2GRAY)
-        lbp = local_binary_pattern(img, 8, 1, method="uniform")
-        return lbp
+        lbp = LBP(radius=1, npoints=1)
+        rs = lbp(img)
+        return rs
 
     @staticmethod
     def sift(img):

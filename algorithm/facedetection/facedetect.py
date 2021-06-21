@@ -5,14 +5,14 @@ import cv2
 from algorithm.featureextraction.featureextract import FeatureExtract
 
 class FaceDetect:
-    PREFIX = "/data/home/duonglee/workspace/find-video-py/project/venv/lib/python3.7/site-packages/cv2/data"
+    PREFIX = "E:\\Banggioi\\Ky8\\CSDL DPT\\code\\csdl-dpt-face-search\\venv\\Lib\\site-packages\\cv2\\data"
 
     @staticmethod
     def faces(img):
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         face_cascade = cv2.CascadeClassifier(FaceDetect.PREFIX+'/haarcascade_frontalface_default.xml')
         faces = face_cascade.detectMultiScale(gray, 1.2, 5)
-        print(len(faces))
+        # print(len(faces))
         return faces
 
     @staticmethod
