@@ -5,7 +5,7 @@ DATA_PATH = os.path.join(PREFIX_PATH, "data")
 
 MYSQL_HOST = "localhost"
 MYSQL_USER = "root"
-MYSQL_PASSWORD = ""
+MYSQL_PASSWORD = "Phung06122910"
 MYSQL_DATABASE = "csdl_dpt_search_img"
 
 SQLALCHEMY_DATABASE_URL = "mysql://{}:{}@{}/{}".format(MYSQL_USER, MYSQL_PASSWORD, MYSQL_HOST, MYSQL_DATABASE)
