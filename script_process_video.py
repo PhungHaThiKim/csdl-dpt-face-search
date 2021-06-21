@@ -43,8 +43,8 @@ def short_video(db: Session, video: models.Video):
     fps = cap.get(cv.CAP_PROP_FPS)
 
     last_frame = None
-    stackMean = None
-    stackIndex = None
+    stackMean = None    # Stack mean(Frame)
+    stackIndex = None   # Stack vi tri
     selectIndex = []
     short_start = []
     short_end = []
@@ -57,25 +57,34 @@ def short_video(db: Session, video: models.Video):
             break
         # frame = cv2.resize(frame, (W, H))
         if last_frame is not None:
-
+            # Nhan dien chuyen canh
+            # Tinh do khac biet giua 2 frame dua vao khoang cach 2 histogram
             dist = SceneDetection().histogram_color(frame, last_frame)
+
+            #Neu dat nguong khac biet giua 2 frame thi phat hien chuyen canh
+            #Neu khong dat nguong thi tiep tuc stack cac frame va vi tri (coi nhu la dang trong shot)
             if dist > config.HISTOGRAM_DIST_THRESHOLD:
                 if stackMean is not None:
                     print("StackShape", stackMean.shape)
-                    meanstack = stackMean.mean()
+                    meanstack = stackMean.mean() #Trung binh frame stack (pixel)
                     print("Mean", meanstack)
                     valMin = 1000000
                     valRet = -1
+
+                    # Check trung binh Frame khong qua toi va time chuyen canh khong qua ngan (de ap dung cho chuyen canh mo dan va sang dan)
                     if meanstack > config.MEAN_FRAME_THRESHOLD and len(stackMean) > config.LEN_FRAME_THRESHOLD:
                         for i in range(len(stackMean)):
                             val = stackMean[i]
+                            # So sanh lay frame gan voi frame trung binh nhat
                             if abs(val - meanstack) < valMin:
                                 valMin = abs(val - meanstack)
                                 valRet = stackIndex[i]
 
+                        # Luu vi tri start_shot, end_shot, fps (cho front-end tach shot)
                         short_start.append(stackIndex[0])
                         short_end.append(stackIndex[-1])
                         fpss.append(fps)
+                        #Lay vi tri frame dai dien cho shot do
                         selectIndex.append(valRet)
                     stackMean = None
                     stackIndex = None
@@ -89,8 +98,8 @@ def short_video(db: Session, video: models.Video):
         last_frame = frame
 
     cap.release()
-    cap = cv.VideoCapture(video_path)
 
+    # Tao folder vat ly
     frames_folder = os.path.join(config.DATA_PATH, video.video_folder, "frames")
     if not os.path.exists(frames_folder):
         os.mkdir(frames_folder)
@@ -98,8 +107,11 @@ def short_video(db: Session, video: models.Video):
         rmtree(frames_folder)
         os.mkdir(frames_folder)
 
-    frames = []
 
+    cap = cv.VideoCapture(video_path)
+
+    frames = []
+    # Lay frame dai dien dua vao vi tri da lay
     for id, sttFrame in enumerate(selectIndex):
         cap.set(cv.CAP_PROP_POS_FRAMES, sttFrame)
         ret, frame = cap.read()
@@ -107,6 +119,7 @@ def short_video(db: Session, video: models.Video):
             print("Can't receive frames. Exiting ...")
             break
 
+        # Them vao db va folder vat ly
         framedb = models.Frame(
             frame_short_pos_start = short_start[id],
             frame_short_pos_end = short_end[id],
@@ -130,19 +143,22 @@ def short_video(db: Session, video: models.Video):
 
 def face_detect(db: Session, frames: List[models.Frame]):
     faces_rs = []
+    #Quet tung frame dai dien
     for frame in frames:
         faces_folder = os.path.join(config.DATA_PATH, frame.video.video_folder, "faces")
 
         frame_path = os.path.join(config.DATA_PATH, frame.frame_path)
         frameimg = cv.imread(frame_path)
 
+        #detect cac face
         faces = FaceDetect.faces(frameimg)
-
+        #cat cac face trong anh
         faces_crop = FaceDetect.faces_crop(frameimg, faces)
 
         if not os.path.exists(faces_folder):
             os.mkdir(faces_folder)
 
+        # Voi moi face se duoc luu duong dan vao db va luu anh o folder vat ly
         for face in faces_crop:
 
             facedb = models.Face(
@@ -164,49 +180,22 @@ def face_detect(db: Session, frames: List[models.Frame]):
 
     return faces_rs
 
-def sift_feature_extract(db: Session, faces: List[models.Face]):
-    sift_feature_rs = []
-    for face in faces:
-        sift_features_folder = os.path.join(config.DATA_PATH, face.frame.video.video_folder, "sift_features")
-
-        face_path = os.path.join(config.DATA_PATH, face.face_path)
-        faceimg = cv.imread(face_path)
-
-        keyf, desf = FeatureExtract.sift(faceimg)
-
-        if not os.path.exists(sift_features_folder):
-            os.mkdir(sift_features_folder)
-
-        sift_featuredb = models.SiftFeature(
-            face_id=face.face_id
-        )
-        db.add(sift_featuredb)
-        db.flush()
-
-        sift_name = "{}.bin".format(str(sift_featuredb.face_id).zfill(5))
-        sift_path = os.path.join(sift_features_folder, sift_name)
-        with open(sift_path, 'wb') as file:
-            pickle.dump((len(keyf), desf), file)
-        print("Save feature sift:", sift_path)
-
-        sift_featuredb.sift_feature_path = os.path.relpath(sift_path, config.DATA_PATH)
-        db.flush()
-        db.refresh(sift_featuredb)
-
-        sift_feature_rs.append(sift_featuredb)
-
-    return sift_feature_rs
-
 def lbp_feature_extract(db: Session, faces: List[models.Face]):
     lbp_feature_rs = []
+
+    # duyet tung face
     for face in faces:
         lbp_features_folder = os.path.join(config.DATA_PATH, face.frame.video.video_folder, "lbp_features")
 
         face_path = os.path.join(config.DATA_PATH, face.face_path)
         faceimg = cv.imread(face_path)
 
+        #Extract feature local_binary_pattern
         feature = FeatureExtract.local_binary_pattern(faceimg)
+        #Histogram muc xam feature
+        feature_his = FeatureExtract.histogram_bit(feature)
 
+        # Luu file_feature-path vao db va luu file_feature-data vao folder vat ly
         if not os.path.exists(lbp_features_folder):
             os.mkdir(lbp_features_folder)
 
@@ -216,10 +205,11 @@ def lbp_feature_extract(db: Session, faces: List[models.Face]):
         db.add(lbp_featuredb)
         db.flush()
 
-        lbp_name = "{}.bin".format(str(lbp_featuredb.face_id).zfill(5))
+        lbp_name = "{}.txt".format(str(lbp_featuredb.face_id).zfill(5))
         lbp_path = os.path.join(lbp_features_folder, lbp_name)
-        with open(lbp_path, 'wb') as file:
-            pickle.dump(feature, file)
+        with open(lbp_path, 'w') as file:
+            np.savetxt(file, feature_his)
+            # pickle.dump(feature, file)
         print("Save feature lbp:", lbp_path)
 
         lbp_featuredb.lbp_feature_path = os.path.relpath(lbp_path, config.DATA_PATH)
@@ -243,15 +233,12 @@ if __name__ == "__main__":
         video: models.Video = insert_video(db, srcpath_test, datetime=datetime.now(), des="1")
         frames: List[models.Frame] = short_video(db, video)
         faces: List[models.Face] = face_detect(db, frames)
-        sifts: List[models.SiftFeature] = sift_feature_extract(db, faces)
         lbps: List[models.LbpFeature] = lbp_feature_extract(db, faces)
         print(video.__dict__)
         for f in frames:
             print(f.__dict__)
         for f in faces:
             print(f.__dict__)
-        for s in sifts:
-            print(s.__dict__)
         for l in lbps:
             print(l.__dict__)
         # db.rollback()

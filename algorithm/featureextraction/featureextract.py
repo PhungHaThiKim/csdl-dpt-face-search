@@ -3,7 +3,42 @@ import cv2 as cv
 from skimage.feature import local_binary_pattern
 import numpy as np
 
-from algorithm.featureextraction.LBP import LBP
+def get_pixel(img, center, x, y):
+    new_value = 0
+    try:
+        if img[x][y] >= center:
+            new_value = 1
+    except:
+        pass
+    return new_value
+
+def lbp_calculated_pixel(img, x, y):
+    center = img[x][y]
+    val_ar = []
+    # top_left
+    val_ar.append(get_pixel(img, center, x - 1, y - 1))
+    # top
+    val_ar.append(get_pixel(img, center, x - 1, y))
+    # top_right
+    val_ar.append(get_pixel(img, center, x - 1, y + 1))
+    # right
+    val_ar.append(get_pixel(img, center, x, y + 1))
+    # bottom_right
+    val_ar.append(get_pixel(img, center, x + 1, y + 1))
+    # bottom
+    val_ar.append(get_pixel(img, center, x + 1, y))
+    # bottom_left
+    val_ar.append(get_pixel(img, center, x + 1, y - 1))
+    # left
+    val_ar.append(get_pixel(img, center, x, y - 1))
+    # Now, we need to convert binary
+    # values to decimal
+    power_val = [1, 2, 4, 8, 16, 32, 64, 128]
+    val = 0
+    for i in range(len(val_ar)):
+        val += val_ar[i] * power_val[i]
+
+    return val
 
 
 class FeatureExtract:
@@ -15,20 +50,21 @@ class FeatureExtract:
         return hist1
 
     @staticmethod
-    def histogram_bit(img):
-        hist, _ = np.histogram(img, bins=np.arange(2**8 + 1), density=True)
+    def histogram_bit(img, rotation = False):
+        if rotation:
+            hist, _ = np.histogram(img, bins=np.arange(256+1), range=[0, 256], density=True)
+        else:
+            hist, _ = np.histogram(img, bins=256, range=[0, 256], density=True)
         return hist
 
     @staticmethod
     def local_binary_pattern(img):
+        height, width, _ = img.shape
         img = cv.cvtColor(img, cv.COLOR_RGB2GRAY)
-        lbp = LBP(radius=1, npoints=1)
-        rs = lbp(img)
-        return rs
+        img_lbp = np.zeros((height, width),
+                           np.uint8)
+        for i in range(0, height):
+            for j in range(0, width):
+                img_lbp[i, j] = lbp_calculated_pixel(img, i, j)
 
-    @staticmethod
-    def sift(img):
-        img1 = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        sift = cv2.SIFT_create()
-        keypoints_1, descriptors_1 = sift.detectAndCompute(img1, None)
-        return keypoints_1, descriptors_1
+        return img_lbp
