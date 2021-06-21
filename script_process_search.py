@@ -29,16 +29,11 @@ def search_image_euclidean(db: Session, img_src):
     # duyet tung face
     for facecrop in faces_crop:
 
-        cv.imwrite("Face.png", facecrop)
         # local_binary_pattern tren moi face
         lbp_src = FeatureExtract.local_binary_pattern(facecrop)
-        cv.imwrite("LBP.png", lbp_src)
 
         # histogram anh xam local_binary_pattern
         lbp_src = FeatureExtract.histogram_bit(lbp_src)
-        plt.plot(lbp_src)
-        plt.show()
-        plt.imsave("plot.png")
 
         lbp_src = lbp_src/np.nansum(lbp_src)
 
@@ -69,7 +64,7 @@ def search_image_euclidean(db: Session, img_src):
 
 
 if __name__ == "__main__":
-    image_search_path = "E:\\Banggioi\\Ky8\\CSDL DPT\\code\\csdl-dpt-face-search\\search\\ronaldo2.png"
+    image_search_path = ".\\search\\ronaldo2.png"
     img_src = cv.imread(image_search_path)
     db: Session = SessionLocal()
     search_image_euclidean(db, img_src)

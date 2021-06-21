@@ -224,7 +224,7 @@ def lbp_feature_extract(db: Session, faces: List[models.Face]):
 
 
 if __name__ == "__main__":
-    upload_folder = "E:\\Banggioi\\Ky8\\CSDL DPT\\code\\csdl-dpt-face-search\\uploads"
+    upload_folder = ".\\uploads"
     for f in os.listdir(upload_folder):
         file = os.path.join(upload_folder, f)
 

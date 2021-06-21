@@ -2,6 +2,7 @@
 data/
 search/
 uploads/
+config.py
 # Created by .ignore support plugin (hsz.mobi)
 ### MATLAB template
 # Windows default autosave extension
